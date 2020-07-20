@@ -1,14 +1,14 @@
 {
-	"name": "Easyvision Devcontainer",
+	"name": "Easyvision LocalContainer",
 	"context": "..",
 	"dockerFile": "../Dockerfile",
     //"image": "selitvin/petastorm_ci",
 	"runArgs": [
-		"-v", "/home/furkan/.ssh:/root/.ssh-localhost:ro",
-		"--device", "/dev/kfd",
-		"--device", "/dev/dri",
-		"--group-add", "video",
-		// "-p", "7781:7777",
+		"-v", "${env:HOME}${env:USERPROFILE}/.ssh:/root/.ssh-localhost:ro",
+		"-v", "$(pwd):/workspace/",
+		// "-v", "/media/ssd/dataset/visdrone:/data/VisDrone",
+		// "-v", "/home/furkankucuk/Projects/detection-framework/easyvision/tests/test_data:/test_data",
+		"-p", "8888:8888",
 		"-e", "DISPLAY=${env:DISPLAY}",
 		"--ipc", "host",
 	],
@@ -19,8 +19,8 @@
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintPath": "pylint",
 		"python.linting.pylintArgs": ["--extension-pkg-whitelist=cv2"],
-		"python.testing.unittestEnabled": true,
-		"python.testing.pytestsEnabled": true,
+		// "python.testing.unittestEnabled": true,
+		"python.testing.nosetestsEnabled": true,
 		"python.jediEnabled": false,
 		"files.watcherExclude": {
 			"**/.git/objects/**": true,
@@ -36,9 +36,8 @@
 		"njpwerner.autodocstring",
 		"donjayamanne.python-extension-pack",
 		"njqdev.vscode-python-typehint",
-		"visualstudioexptteam.vscodeintellicode",
-		"ms-azuretools.vscode-docker"
+		"visualstudioexptteam.vscodeintellicode"
 	],
-	"workspaceMount": "src=/home/furkan/Documents/CommTF/,dst=/workspace,type=bind",
+	"workspaceMount": "src=/home/furkankucuk/Projects/detection-framework,dst=/workspace,type=bind",
 	"workspaceFolder": "/workspace"
 }
