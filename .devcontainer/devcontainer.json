@@ -1,0 +1,44 @@
+{
+	"name": "Easyvision Devcontainer",
+	"context": "..",
+	"dockerFile": "../Dockerfile",
+    //"image": "selitvin/petastorm_ci",
+	"runArgs": [
+		"-v", "/home/furkan/.ssh:/root/.ssh-localhost:ro",
+		"--device", "/dev/kfd",
+		"--device", "/dev/dri",
+		"--group-add", "video",
+		// "-p", "7781:7777",
+		"-e", "DISPLAY=${env:DISPLAY}",
+		"--ipc", "host",
+	],
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"python.pythonPath": "python",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintPath": "pylint",
+		"python.linting.pylintArgs": ["--extension-pkg-whitelist=cv2"],
+		"python.testing.unittestEnabled": true,
+		"python.testing.pytestsEnabled": true,
+		"python.jediEnabled": false,
+		"files.watcherExclude": {
+			"**/.git/objects/**": true,
+			"**/.git/subtree-cache/**": true,
+			"**/data/*/**": true,
+			"**/output/*/**": true,
+		}
+	},
+	"postCreateCommand": "mkdir -p ~/.ssh && cp -r ~/.ssh-localhost/* ~/.ssh && chmod 700 ~/.ssh && chmod 600 ~/.ssh/*",
+	"extensions": [
+		"ms-python.python",
+		"eamodio.gitlens",
+		"njpwerner.autodocstring",
+		"donjayamanne.python-extension-pack",
+		"njqdev.vscode-python-typehint",
+		"visualstudioexptteam.vscodeintellicode",
+		"ms-azuretools.vscode-docker"
+	],
+	"workspaceMount": "src=/home/furkan/Documents/CommTF/,dst=/workspace,type=bind",
+	"workspaceFolder": "/workspace"
+}
