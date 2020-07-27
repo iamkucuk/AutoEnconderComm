@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import random
 
-# seed_number = 21
-# tf.set_random_seed(seed_number)
-# random.seed(seed_number)
-# np.random.seed(seed_number)
+seed_number = 21
+tf.set_random_seed(seed_number)
+random.seed(seed_number)
+np.random.seed(seed_number)
 
 
 # %%
