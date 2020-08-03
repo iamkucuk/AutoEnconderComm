@@ -60,16 +60,16 @@ def generate_data(M, N=100000, n_receiver=2):
     np.random.shuffle(data)
     return data
 
-def ber_curve(encoders, decoders, combiner, R = 1, SNR_range = [-10, 20], M=4):
+def ber_curve_combined(encoders, decoders, combiner, R = 1, SNR_range = [-10, 20], M=4):
     test_datas = [generate_data(M=M) for i in range(len(decoders))]
     ebno_range = calc_ebno(np.arange(SNR_range[0], SNR_range[1]))
     bers = [[]] * len(decoders)
     for ebno in ebno_range:
-        outs = [encoders[i](test_datas[i]) for i in range(len(encoders))]
+        outs = [encoders[i].predict(test_datas[i]) for i in range(len(encoders))]
         concatenated = np.concatenate(outs, axis=1)
         out = combiner.predict(concatenated)
-        noises = [np.sqrt(1 / (2 * R * ebno)) * np.random.randn(*out.shape) for i in range(len(outs))]
-        outs = [decoders[i].predict(out + noises[i]) for i in range(len(decoders))]
+        receiveds = [out + np.sqrt(1 / (2 * R * ebno)) * np.random.randn(*out.shape) for i in range(len(outs))]
+        outs = [decoders[i].predict(receiveds[i]) for i in range(len(decoders))]
         preds = [np.argmax(out, axis=1) for out in outs]
         errors = [np.asarray((preds[i] != np.argmax(test_datas[i], axis=1))).astype(int).mean() for i in range(len(preds))]
         
@@ -77,6 +77,21 @@ def ber_curve(encoders, decoders, combiner, R = 1, SNR_range = [-10, 20], M=4):
             bers[i].append(error)
 
     return bers
+
+def ber_curve(encoder, decoder, R = 1, SNR_range = [-10, 20], M=4):
+    test_datas = generate_data(M=M)
+    ebno_range = calc_ebno(np.arange(SNR_range[0], SNR_range[1]))
+    ber = []
+    for ebno in ebno_range:
+        out = encoder.predict(test_datas)
+        received = out + np.sqrt(1 / (2 * R * ebno)) * np.random.randn(*out.shape)
+        out = decoder.predict(received)
+        preds = np.argmax(out, axis=1)
+        errors = np.asarray((preds != np.argmax(test_datas, axis=1))).astype(int).mean()
+        
+        ber.append(errors)
+
+    return ber
 
 def rate_curve(bers, R = 1):
     rates = [1 - np.array(ber) * R for ber in bers]
