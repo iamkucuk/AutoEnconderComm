@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import random
 from keras import backend as K
+from keras.layers import Input, Dense, GaussianNoise, Lambda, Dropout, concatenate, LSTM, Add, Multiply, Layer
+from keras.models import Model, Sequential, load_model
+from keras.layers.normalization import BatchNormalization
+from keras.callbacks import Callback
 
 def plot_scatter_constellation(encoder, show = True, M = 4):
     scatter_plot = []
@@ -107,3 +111,56 @@ def generate_train_datas(M = 4, N = 400000, k=2):
 
 def BER(y_true, y_pred):
     return K.mean(K.not_equal(y_true, K.round(y_pred)), axis=-1)  
+
+def create_decoder(layer_sizes, name="decoder1", activation="relu"):
+    layers = [
+        Dense(layer_size, activation=activation) for layer_size in layer_sizes[:-1]
+    ]
+    layers.append(Dense(layer_sizes[-1], activation="softmax"))
+    return Sequential(layers, name=name)
+
+def create_encoder(layer_sizes, name="encoder1", activations=["relu", "linear"]):
+    layers = [
+        Dense(layer_size, activation=activations[0]) for layer_size in layer_sizes[:-1]
+    ]
+    layers.append(Dense(layer_sizes[-1], activation=activations[1]))
+    layers.append(BatchNormalization(center=False, scale=False))
+    return Sequential(layers, name=name)
+
+def create_combiner(layer_sizes, activations=["relu", "linear"], name="combiner"):
+    layers = [
+        Dense(layer_size, activation=activations[0]) for layer_size in layer_sizes[:-1]
+    ]
+    layers.append(Dense(layer_sizes[-1], activation=activations[1]))
+    layers.append(BatchNormalization(center=False, scale=False))
+    return Sequential(layers, name=name)
+
+def create_inputs(R, H, t, k, ebno, name="transmit1"):
+    return Sequential(
+                [Lambda(TransmissionLayer, arguments={"H": H, "t":t, "k":k}),
+                GaussianNoise(np.sqrt(1 / (2 * R * ebno)))], name=name)
+
+
+def TransmissionLayer(x, H, t, k):
+    signal = H[t, k] * x
+
+    for i in range(t):
+        if i == k:
+            continue
+        interference = H[i, k] * x
+        signal = signal + interference
+
+
+#     noise = K.random_normal(K.shape(signal),
+#                         mean=0,
+#                         stddev=np.sqrt( 1/ (2 * R * ebno[k])))
+    return signal 
+
+class AlphaCallback(Callback):
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def on_batch_end(self, batch, logs=None):
+        loss1, loss2 = logs["decoder1_loss"], logs["decoder2_loss"]
+        K.set_value(self.alpha, loss1 / (loss1 + loss2))
