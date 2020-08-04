@@ -33,7 +33,6 @@ def plot_scatter_duo(encoders, combiner, show=True, M=4):
         temp = np.zeros(M)
         temp[i] = 1
         out1 = encoder1.predict(np.expand_dims(temp, axis=0))
-        scatter_plot.append(out1.squeeze(0))
         for j in range(M):
             temp2 = np.zeros(M)
             temp2[j] = 1
@@ -136,12 +135,18 @@ def create_combiner(layer_sizes, activations=["relu", "linear"], name="combiner"
     return Sequential(layers, name=name)
 
 def create_inputs(R, H, t, k, ebno, name="transmit1"):
-    return Sequential(
-                [Lambda(TransmissionLayer, arguments={"H": H, "t":t, "k":k}),
-                GaussianNoise(np.sqrt(1 / (2 * R * ebno)))], name=name)
+    # return Sequential(
+    #             [Lambda(TransmissionLayer, arguments={"H": H,"R": R, "ebno": ebno, "t":t, "k":k}),
+    #             GaussianNoise(np.sqrt(1 / (2 * R * ebno)))], name=name)
+    return Lambda(TransmissionLayer, arguments={"H": H,"R": R, "ebno": ebno, "t":t, "k":k}, name=name)
 
+def measure_sig_power(sig):
+    sig = np.array(sig)
+    sig = np.array(sig[:, 0] + 1j * sig[:, 1])
+    sig_power = np.sum(np.abs(sig**2)) / len(sig)
+    return sig_power
 
-def TransmissionLayer(x, H, t, k):
+def TransmissionLayer(x, H, R, ebno, t, k):
     signal = H[t, k] * x
 
     for i in range(t):
@@ -151,10 +156,10 @@ def TransmissionLayer(x, H, t, k):
         signal = signal + interference
 
 
-#     noise = K.random_normal(K.shape(signal),
-#                         mean=0,
-#                         stddev=np.sqrt( 1/ (2 * R * ebno[k])))
-    return signal 
+    noise = K.random_normal(K.shape(signal),
+                        mean=0,
+                        stddev=np.sqrt(1 / (2 * R * ebno[k])))
+    return signal + noise
 
 class AlphaCallback(Callback):
     def __init__(self, alpha):
