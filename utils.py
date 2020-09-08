@@ -63,6 +63,22 @@ def generate_data(M, N=100000, n_receiver=2):
     np.random.shuffle(data)
     return data
 
+def generate_qam(M = 4, N=100000):
+    label = np.random.randint(M, size=N)
+
+    data = np.ones((N, 2))
+    label_data = np.zeros((N, M))
+    for i in range(N):
+        label_data[i, label[i]] = 1
+        if label[i] == 1:
+            data[i, :] = [-1, 1]
+        elif label[i] == 2:
+            data[i, :] = [-1, -1]
+        elif label[i] == 3:
+            data[i, :] = [1, -1]
+    
+    return data, label_data
+
 def ber_curve_combined(encoders, decoders, combiner, R = 1, SNR_range = [-10, 20], M=4):
     test_datas = [generate_data(M=M) for i in range(len(decoders))]
     ebno_range = calc_ebno(np.arange(SNR_range[0], SNR_range[1]))
