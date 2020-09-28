@@ -132,8 +132,9 @@ def generate_train_datas(M = 4, N = 400000, k=2, include_snr=False):
             snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i
             snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i
         for i in range(5, 10):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i + 5,
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i + 5
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i - 5,
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i - 5
+
         snrs = [snrs[:, i].squeeze() for i in range(k)]
         train_data = [generate_data(M=M, N=N) for i in range(k)]
         train_data.extend(snrs)
@@ -158,10 +159,11 @@ def create_encoder(layer_sizes, name="encoder1", activations=["relu", "linear"])
     layers.append(BatchNormalization(center=False, scale=False))
     return Sequential(layers, name=name)
 
-def create_combiner(layer_sizes, activations=["relu", "linear"], name="combiner"):
+def create_combiner(layer_sizes, activations=["relu", "linear"], dropout_prob=0, name="combiner"):
     layers = [
         Dense(layer_size, activation=activations[0]) for layer_size in layer_sizes[:-1]
     ]
+    layers.append(Dropout(dropout_prob))
     layers.append(Dense(layer_sizes[-1], activation=activations[1]))
     layers.append(BatchNormalization(center=False, scale=False))
     return Sequential(layers, name=name)

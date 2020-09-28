@@ -5,9 +5,12 @@
     //"image": "selitvin/petastorm_ci",
 	"runArgs": [
 		"-v", "${env:HOME}${env:USERPROFILE}/.ssh:/root/.ssh-localhost:ro",
-		"-v", "$(pwd):/workspace/",
 		// "-v", "/media/ssd/dataset/visdrone:/data/VisDrone",
 		// "-v", "/home/furkankucuk/Projects/detection-framework/easyvision/tests/test_data:/test_data",
+		"--privileged",
+		"--device", "/dev/kfd",
+		"--device", "/dev/dri",
+		"--group-add", "video",
 		"-p", "8888:8888",
 		"-e", "DISPLAY=${env:DISPLAY}",
 		"--ipc", "host",
@@ -38,6 +41,6 @@
 		"njqdev.vscode-python-typehint",
 		"visualstudioexptteam.vscodeintellicode"
 	],
-	"workspaceMount": "src=/home/furkankucuk/Projects/detection-framework,dst=/workspace,type=bind",
+	"workspaceMount": "src=/home/furkan/Documents/AutoEnconderComm,dst=/workspace,type=bind",
 	"workspaceFolder": "/workspace"
 }

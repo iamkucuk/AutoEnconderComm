@@ -76,7 +76,7 @@ train_datas = generate_train_datas(k=2)
 
 model.fit(x=train_datas, y=train_datas, validation_split=.5, batch_size=40000,
     epochs=2000, callbacks=[
-    EarlyStopping(patience=100, restore_best_weights=True, monitor="loss", mode="min"),
+    EarlyStopping(patience=20, restore_best_weights=True, monitor="loss", mode="min"),
     ReduceLROnPlateau(monitor="loss", factor=.5, patience=20),
     AlphaCallback(alpha),
 ])
@@ -89,7 +89,7 @@ encoder2.trainable = False
 input_snr1 = Input(shape=(1,), name="snr_input1")
 input_snr2 = Input(shape=(1,), name="snr_input2")
 
-combiner = create_combiner(layer_sizes=[n_channel*4, n_channel], activations=["relu", "tanh"], name="combiner")
+combiner = create_combiner(layer_sizes=[n_channel*8, n_channel], dropout_prob=.5, activations=["relu", "tanh"], name="combiner")
 
 x1 = encoder1(input_signal1)
 x2 = encoder1(input_signal2)
@@ -136,7 +136,7 @@ for i in range(M):
         comb_in = np.zeros(6)
         comb_in[:2] = out1.squeeze(0)
         comb_in[2:4] = out2.squeeze(0)
-        comb_in[4], comb_in[5] = 7, 7
+        comb_in[4], comb_in[5] = 7/12, 7/12
         # out = np.concatenate(comb_in)
         out = combiner.predict(np.expand_dims(comb_in, axis=0))
         scatter_plot.append(out.squeeze(0))
