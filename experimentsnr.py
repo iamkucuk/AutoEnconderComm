@@ -18,6 +18,7 @@ import tensorflow as tf
 import random
 from utils import *
 import warnings
+from losses import categorical_focal_loss
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
@@ -34,14 +35,35 @@ M = 2 ** k
 k = int(k)
 R = k / n_channel
 
+input_signal1 = Input(shape=(M,), name="input1")
 
-# %%
+encoder1 = create_encoder([M, n_channel], name="encoder1", activations=["relu", "linear"])
+signal_input1 = create_inputs(R=R, H=H, t=0, k=0, ebno=ebno, name="transmit1")
+decoder1 = create_decoder([M, M, M], name="decoder1", activation="relu")
+
+x1 = encoder1(input_signal1)
+x1 = signal_input1(x1)
+out1 = decoder1(x1)
+
+model1 = Model(inputs=input_signal1, outputs=out1)
+
+model1.compile(optimizer="rmsprop", loss="categorical_crossentropy", metrics=["accuracy", BER])
+
+train_datas = generate_train_datas(k=1)
+
+model1.fit(x=train_datas, y=train_datas, validation_split=.5, batch_size=10000,
+    epochs=2000, callbacks=[
+    EarlyStopping(patience=100, restore_best_weights=True, monitor="BER", mode="min"),
+    ReduceLROnPlateau(monitor="loss", factor=.7, patience=20),
+])
+
+# # %%
 input_signal1 = Input(shape=(M,), name="input1")
 input_signal2 = Input(shape=(M,), name="input2")
-encoder1 = create_encoder([M, n_channel], name="encoder1", activations=["relu", "linear"])
-encoder2 = create_encoder([M, n_channel], name="encoder2", activations=["relu", "linear"])
+# encoder1 = create_encoder([M, n_channel], name="encoder1", activations=["relu", "linear"])
+# encoder2 = create_encoder([M, n_channel], name="encoder2", activations=["relu", "linear"])
 
-combiner = create_combiner(layer_sizes=[n_channel * 4, n_channel], activations=["relu", "tanh"], name="combiner")
+# combiner = create_combiner(layer_sizes=[n_channel * 4, n_channel], activations=["relu", "tanh"], name="combiner")
 
 signal_input2 = create_inputs(R=R, H=H, t=0, k=1, ebno=ebno, name="transmit2")
 signal_input1 = create_inputs(R=R, H=H, t=0, k=0, ebno=ebno, name="transmit1")
@@ -50,51 +72,57 @@ decoder1 = create_decoder([M * 4, M * 2, M], name="decoder1", activation="relu")
 
 decoder2 = create_decoder([M * 4, M * 2, M], name="decoder2", activation="relu")
 
-x1 = encoder1(input_signal1)
-x2 = encoder1(input_signal2)
-x = concatenate([x1, x2], axis=1)
-x = combiner(x)
-x1 = signal_input1(x)
-x2 = signal_input2(x)
-out1 = decoder1(x1)
-out2 = decoder2(x2)
+# x1 = encoder1(input_signal1)
+# x2 = encoder1(input_signal2)
+# x = concatenate([x1, x2], axis=1)
+# x = combiner(x)
+# x1 = signal_input1(x)
+# x2 = signal_input2(x)
+# out1 = decoder1(x1)
+# out2 = decoder2(x2)
+
+
+# # %%
+# model = Model(inputs=[input_signal1, input_signal2], outputs=[out1, out2])
+# model.summary()
+# alpha = K.variable(.5)
+
+# optim = SGD(momentum=.9)
+
+# model.compile(optimizer="rmsprop", loss=["categorical_crossentropy", "categorical_crossentropy"],
+#             loss_weights=[alpha, (1 - alpha)], metrics=["accuracy", BER])
+
+
+# # %%
+# train_datas = generate_train_datas(k=2)
+
+# model.fit(x=train_datas, y=train_datas, validation_split=.5, batch_size=40000,
+#     epochs=2000, callbacks=[
+#     EarlyStopping(patience=20, restore_best_weights=True, monitor="loss", mode="min"),
+#     ReduceLROnPlateau(monitor="loss", factor=.5, patience=20),
+#     AlphaCallback(alpha),
+# ])
 
 
 # %%
-model = Model(inputs=[input_signal1, input_signal2], outputs=[out1, out2])
-model.summary()
-alpha = K.variable(.5)
-
-optim = SGD(momentum=.9)
-
-model.compile(optimizer="rmsprop", loss=["categorical_crossentropy", "categorical_crossentropy"],
-            loss_weights=[alpha, (1 - alpha)], metrics=["accuracy", BER])
+oscilation = 3
 
 
-# %%
-train_datas = generate_train_datas(k=2)
-
-model.fit(x=train_datas, y=train_datas, validation_split=.5, batch_size=40000,
-    epochs=2000, callbacks=[
-    EarlyStopping(patience=20, restore_best_weights=True, monitor="loss", mode="min"),
-    ReduceLROnPlateau(monitor="loss", factor=.5, patience=20),
-    AlphaCallback(alpha),
-])
-
-
-# %%
+normalizer = Lambda(lambda x: x / (7 + oscilation))
 encoder1.trainable = False
-encoder2.trainable = False
+# encoder2.trainable = False
 
 input_snr1 = Input(shape=(1,), name="snr_input1")
 input_snr2 = Input(shape=(1,), name="snr_input2")
+#diff_snr = Input(shape=(1,), name="snr_input2")
 
-combiner = create_combiner(layer_sizes=[n_channel*8, n_channel], dropout_prob=.5, activations=["relu", "tanh"], name="combiner")
+combiner = create_combiner(layer_sizes=[n_channel*2, n_channel], dropout_prob=0, activations=["tanh", "linear"], name="combiner")
 
 x1 = encoder1(input_signal1)
 x2 = encoder1(input_signal2)
 # input_snr = subtract([input_snr1,])
-x = concatenate([x1, x2, input_snr1, input_snr2], axis=1)
+diff_snr = subtract([input_snr1, input_snr2])
+x = concatenate([x1, x2, normalizer(input_snr1), normalizer(input_snr2), normalizer(diff_snr)], axis=1)
 x = combiner(x)
 x1 = signal_input1([x, input_snr1])
 x2 = signal_input2([x, input_snr2])
@@ -108,18 +136,18 @@ alpha = K.variable(.5)
 
 optim = Adam(learning_rate=0.0001)
 
-model.compile(optimizer="rmsprop", loss=["categorical_crossentropy", "categorical_crossentropy"],
-            loss_weights=[alpha, (1 - alpha)], metrics=["accuracy", BER])
-
+model.compile(optimizer="rmsprop", loss=[categorical_focal_loss(0.25), categorical_focal_loss(0.25)],
+            metrics=["accuracy", BER])
 
 # %%
-train_datas = generate_train_datas(k=k, N=2800000, include_snr=True)
+
+train_datas = generate_train_datas(k=k, N=28000000, include_snr=True, oscilation=oscilation)
 
 model.fit(x=train_datas, y=train_datas[:k], validation_split=.5, batch_size=40000,
     epochs=2000, shuffle=False, callbacks=[
-    EarlyStopping(patience=20, restore_best_weights=True, monitor="loss", mode="min"),
+    EarlyStopping(patience=3, restore_best_weights=True, monitor="loss", mode="min"),
     ReduceLROnPlateau(monitor="loss", factor=.5, patience=20),
-    AlphaCallback(alpha),
+    # AlphaCallback(alpha),
 ])
 
 # %%
@@ -132,11 +160,11 @@ for i in range(M):
     for j in range(M):
         temp2 = np.zeros(M)
         temp2[j] = 1
-        out2 = encoder2.predict(np.expand_dims(temp2, axis=0))
-        comb_in = np.zeros(6)
+        out2 = encoder1.predict(np.expand_dims(temp2, axis=0))
+        comb_in = np.zeros(7)
         comb_in[:2] = out1.squeeze(0)
         comb_in[2:4] = out2.squeeze(0)
-        comb_in[4], comb_in[5] = 7/12, 7/12
+        comb_in[4:] = 9 / (2*oscilation), 9 / (2*oscilation), 0 / (2*oscilation)
         # out = np.concatenate(comb_in)
         out = combiner.predict(np.expand_dims(comb_in, axis=0))
         scatter_plot.append(out.squeeze(0))

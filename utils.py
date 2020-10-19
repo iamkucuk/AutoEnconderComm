@@ -121,19 +121,32 @@ def seed_everything(seed_number):
     random.seed(seed_number)
     np.random.seed(seed_number)
 
-def generate_train_datas(M = 4, N = 400000, k=2, include_snr=False):
+normalize_layer = Lambda(lambda inputs: inputs[0] / inputs[1])
+
+def generate_train_datas(M = 4, N = 400000, k=2, include_snr=False, oscilation=5):
     if include_snr:
         # snrs = [np.random.randint(0, 10, (N, 1)) for i in range(k)]
         # snrs = np.array(snrs)
         # snrs = np.sort(snrs, 0)
-        snrs = np.ones((N, k))
-        step_size = int(N / 10)
-        for i in range(5):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i
-        for i in range(5, 10):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i - 5,
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i - 5
+        snrs = np.ones((N, k + 1))
+        step_size = int(N / (oscilation * 4))
+        for i in range(oscilation):
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 - i
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 + i
+        for i in range(oscilation, oscilation * 2):
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 + i - oscilation,
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 - i - oscilation
+
+        for i in range(oscilation * 2, oscilation * 3):
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 - i
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 + i
+        for i in range(oscilation * 3, oscilation * 4):
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 + i - oscilation,
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 - i - oscilation
+
+        snrs[:, 2] = snrs[:, 1] - snrs[:, 0]
+
+        np.random.shuffle(snrs)
 
         snrs = [snrs[:, i].squeeze() for i in range(k)]
         train_data = [generate_data(M=M, N=N) for i in range(k)]
@@ -165,7 +178,8 @@ def create_combiner(layer_sizes, activations=["relu", "linear"], dropout_prob=0,
     ]
     layers.append(Dropout(dropout_prob))
     layers.append(Dense(layer_sizes[-1], activation=activations[1]))
-    layers.append(BatchNormalization(center=False, scale=False))
+    # layers.append(BatchNormalization(center=False, scale=False))
+    layers.append(Lambda(lambda x: np.sqrt(layer_sizes[-1])*K.l2_normalize(x,axis=1)))
     return Sequential(layers, name=name)
 
 def create_inputs(R, H, t, k, ebno, name="transmit1"):
