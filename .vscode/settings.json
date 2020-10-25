@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "/usr/local/envs/commtf/bin/python",
+    "python.pythonPath": "/usr/bin/python",
     "python.linting.pylintEnabled": true,
     "python.linting.pycodestyleEnabled": false,
     "python.linting.enabled": true,

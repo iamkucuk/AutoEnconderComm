@@ -129,22 +129,16 @@ def generate_train_datas(M = 4, N = 400000, k=2, include_snr=False, oscilation=5
         # snrs = np.array(snrs)
         # snrs = np.sort(snrs, 0)
         snrs = np.ones((N, k + 1))
-        step_size = int(N / (oscilation * 4))
+        step_size = int(N / (2 * oscilation))
+
         for i in range(oscilation):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 - i
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 + i
-        for i in range(oscilation, oscilation * 2):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 + i - oscilation,
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 - i - oscilation
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i
+        for i in range(oscilation, 2 * oscilation):
+            snrs[i * step_size: (i + 1) * step_size, 0] *= 7 - i
+            snrs[i * step_size: (i + 1) * step_size, 1] *= 7 + i
 
-        for i in range(oscilation * 2, oscilation * 3):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 - i
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 + i
-        for i in range(oscilation * 3, oscilation * 4):
-            snrs[i * step_size: (i + 1) * step_size, 0] *= 10 + i - oscilation,
-            snrs[i * step_size: (i + 1) * step_size, 1] *= 10 - i - oscilation
-
-        snrs[:, 2] = snrs[:, 1] - snrs[:, 0]
+        # snrs[:, 2] = snrs[:, 1] - snrs[:, 0]
 
         np.random.shuffle(snrs)
 
@@ -178,8 +172,8 @@ def create_combiner(layer_sizes, activations=["relu", "linear"], dropout_prob=0,
     ]
     layers.append(Dropout(dropout_prob))
     layers.append(Dense(layer_sizes[-1], activation=activations[1]))
-    # layers.append(BatchNormalization(center=False, scale=False))
-    layers.append(Lambda(lambda x: np.sqrt(layer_sizes[-1])*K.l2_normalize(x,axis=1)))
+    layers.append(BatchNormalization(center=False, scale=False))
+    # layers.append(Lambda(lambda x: np.sqrt(layer_sizes[-1])*K.l2_normalize(x,axis=1)))
     return Sequential(layers, name=name)
 
 def create_inputs(R, H, t, k, ebno, name="transmit1"):

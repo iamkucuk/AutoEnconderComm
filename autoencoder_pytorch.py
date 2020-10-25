@@ -4,13 +4,12 @@
 import torch
 from torch import nn
 import numpy as np
-NUM_EPOCHS =200
-BATCH_SIZE = 32
-USE_CUDA = False
+NUM_EPOCHS = 40 
+BATCH_SIZE = 1024
 
 
 # %%
-k = 2
+k = 4
 n_channel = 2
 M = 2 ** k
 R = k/n_channel
@@ -36,12 +35,14 @@ class RTN(LightningModule):
 
         self.in_channels = hparams["in_channels"]
         self.compressed_dim = hparams["compressed_dim"]
-        self.training_signal_noise_ratio = 5.01187
+        self.db2ebno = lambda x: 10**(x/10)
+        self.train_SNR = 7
 
         self.encoder = nn.Sequential(
             nn.Linear(self.in_channels, self.in_channels),
             nn.ReLU(inplace=True),
-            nn.Linear(self.in_channels, self.compressed_dim)
+            nn.Linear(self.in_channels, self.compressed_dim),
+            nn.BatchNorm1d(self.compressed_dim),
         )
 
         self.decoder = nn.Sequential(
@@ -56,21 +57,25 @@ class RTN(LightningModule):
     def encode_signal(self,x):
         return self.encoder(x)
     
-    def AWGN(self,x,ebno):
+    def AWGN(self,x,SNR):
         """ Adding Noise for testing step.
         """
          # Normalization.
+        ebno = self.db2ebno(SNR)
+
         x = (self.in_channels **0.5) * (x / x.norm(dim=-1)[:, None])
         # bit / channel_use
         communication_rate = R
         # Simulated Gaussian noise.
-        noise = Variable(torch.randn(*x.size()) / ((2 * communication_rate * ebno) ** 0.5))
+        noise = torch.tensor(torch.randn(*x.size()) / ((2 * communication_rate * ebno) ** 0.5), device=x.device)
         x += noise
+
         return x
 
     def forward(self, x):
+
         x = self.encoder(x)
-        self.AWGN(x, self.training_signal_noise_ratio)
+        self.AWGN(x, self.train_SNR)
         x = self.decoder(x)
 
         return x
@@ -100,11 +105,11 @@ class RTN(LightningModule):
         for n in range(0,len(EbNodB_range)):
             EbNo=10.0**(EbNodB_range[n]/10.0)
 
-            encoder=model.encode_signal(x)
-            encoder=model.AWGN(encoder,EbNo)
-            decoder=model.decode_signal(encoder)
-            pred=decoder.data.numpy()
-            label=y.data.numpy()
+            encoded=model.encode_signal(x)
+            transmitted=model.AWGN(encoded,EbNo)
+            decoded=model.decode_signal(transmitted)
+            pred=decoded.cpu().data.numpy()
+            label=y.cpu().data.numpy()
             pred_output = np.argmax(pred,axis=1)
             no_errors = (pred_output != label)
             no_errors =  no_errors.astype(int).sum()
@@ -115,6 +120,17 @@ class RTN(LightningModule):
     def test_epoch_end(self, outputs):
         ber_curve = torch.Tensor(outputs).sum(0)
         import matplotlib.pyplot as plt 
+        const = torch.eye(M).to(self.device)
+        scatter_plot = self.encoder(const)
+
+        scatter_plot = scatter_plot.cpu().data.numpy()
+
+        scatter_plot = scatter_plot.reshape(-1, 2, 1)
+
+        plt.scatter(scatter_plot[:, 0], scatter_plot[:, 1])
+        plt.show()
+
+        plt.figure()
         plt.plot(self.EbNodB_range, ber_curve, 'bo',label='Autoencoder({},{})'.format(k, n_channel))
         plt.yscale('log')
         plt.xlabel('SNR Range')
@@ -123,9 +139,14 @@ class RTN(LightningModule):
         plt.legend(loc='upper right',ncol = 1)
         plt.show()
 
+    def measure_sig_power(self, sig):
+        sig = np.array(sig)
+        sig = np.array(sig[:, 0] + 1j * sig[:, 1])
+        sig_power = np.sum(np.abs(sig**2)) / len(sig)
+        return sig_power
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.001)
+        return torch.optim.RMSprop(self.parameters(), lr=0.001)
 
     def train_dataloader(self): 
         return DataLoader(dataset = self.dataset_train, batch_size = self.batch_size, shuffle = True)
@@ -138,26 +159,26 @@ class RTN(LightningModule):
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 
-hparams = {
-    "train_num":int(1e5),
-    "test_num":int(1e5),
-    "batch_size": 32,
-    "in_channels": M,
-    "compressed_dim": n_channel,
-    "EbNodB_range":  list(range(-5,9)),
-}
+if __name__ == "__main__":
 
-model = RTN(hparams)
+    hparams = {
+        "train_num":int(1e5),
+        "test_num":int(1e5),
+        "batch_size": BATCH_SIZE,
+        "in_channels": M,
+        "compressed_dim": n_channel,
+        "EbNodB_range":  list(range(-5,9)),
+    }
 
+    model = RTN(hparams)
 
+    trainer = Trainer(
+        # gpus=1,
+        # distributed_backend="dp",
+        max_epochs = NUM_EPOCHS,
+        )
+    trainer.fit(model)
 
-trainer = Trainer(
-    max_epochs = 1,
-    )
-trainer.fit(model)
-
-
-# %%
-trainer.test()
+    trainer.test()
 
 

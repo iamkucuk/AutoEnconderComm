@@ -1,7 +1,7 @@
 {
 	"name": "Easyvision LocalContainer",
 	"context": "..",
-	"dockerFile": "../Dockerfile",
+	"dockerFile": "../Dockerfile.torch",
     //"image": "selitvin/petastorm_ci",
 	"runArgs": [
 		"-v", "${env:HOME}${env:USERPROFILE}/.ssh:/root/.ssh-localhost:ro",
