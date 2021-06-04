@@ -1,5 +1,0 @@
-FROM rocm/pytorch:rocm3.8_ubuntu18.04_py3.6_pytorch
-
-
-
-WORKDIR workspace

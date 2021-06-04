@@ -4,6 +4,12 @@ import tensorflow as tf
 # Compatible with tensorflow backend
 
 def focal_loss(gamma=2., alpha=.25):
+	"""Focal loss implementation for experimenting.
+
+	Args:
+		gamma ([type], optional): [description]. Defaults to 2..
+		alpha (float, optional): [description]. Defaults to .25.
+	"""
 	def focal_loss_fixed(y_true, y_pred):
 		pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
 		pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
